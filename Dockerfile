@@ -14,12 +14,13 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /workspace
 
-# Install packages including Jupyter
+# Install packages including Jupyter and sageattention
 RUN pip install --no-cache-dir \
     xformers==0.0.23 \
     ultralytics \
     jupyter \
-    notebook
+    notebook \
+    sageattention
 
 # Copy start script
 COPY start.sh /start.sh
