@@ -14,15 +14,18 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /workspace
 
-# Only install packages not in base image
+# Install packages including Jupyter
 RUN pip install --no-cache-dir \
     xformers==0.0.23 \
-    ultralytics
+    ultralytics \
+    jupyter \
+    notebook
 
 # Copy start script
 COPY start.sh /start.sh
 RUN chmod +x /start.sh
 
-EXPOSE 8188
+# Expose ports for ComfyUI and Jupyter
+EXPOSE 8188 8888
 
 CMD ["/start.sh"]
