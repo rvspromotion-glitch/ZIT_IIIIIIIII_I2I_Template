@@ -116,7 +116,7 @@ if [ ! -f "models/sams/sam_vit_h_4b8939.pth" ]; then
 fi
 
 echo "Downloading YOLOv8 detection models..."
-# YOLOv8 Nano - fastest, for hands/pose
+# YOLOv8 Nano - fastest, for general detection
 if [ ! -f "models/ultralytics/bbox/yolov8n.pt" ]; then
     wget -O models/ultralytics/bbox/yolov8n.pt https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8n.pt
 fi
@@ -148,14 +148,20 @@ if [ ! -f "models/ultralytics/segm/yolov8l-seg.pt" ]; then
 fi
 
 echo "Downloading specialized detection models..."
-# Face detection
+
+# Face detection - using lindevs YOLOv8n-Face model (well-maintained, proven to work)
 if [ ! -f "models/ultralytics/bbox/yolov8n-face.pt" ]; then
-    wget -O models/ultralytics/bbox/yolov8n-face.pt https://github.com/akanametov/yolov8-face/releases/download/v0.0.0/yolov8n-face.pt
+    echo "Downloading YOLOv8n Face detection model..."
+    wget -O models/ultralytics/bbox/yolov8n-face.pt \
+        https://github.com/lindevs/yolov8-face/releases/download/v1.0.0/yolov8n-face.pt || \
+    echo "Face model download failed, will use general detection model"
 fi
 
-# Hand detection (MediaPipe style)
+# Hand detection - using Hugging Face model (confirmed working)
 if [ ! -f "models/ultralytics/bbox/hand_yolov8n.pt" ]; then
-    wget -O models/ultralytics/bbox/hand_yolov8n.pt https://github.com/hukenovs/hagrid/releases/download/v1.0/yolov8n_hagrid_512.pt
+    echo "Downloading hand detection model..."
+    wget -O models/ultralytics/bbox/hand_yolov8n.pt \
+        https://huggingface.co/Bingsu/adetailer/resolve/main/hand_yolov8n.pt
 fi
 
 if [ ! -d "custom_nodes/ComfyUI-Manager/.git" ]; then
@@ -176,7 +182,8 @@ jupyter notebook --ip=0.0.0.0 --port=8888 --no-browser --allow-root \
     --notebook-dir=/workspace/ComfyUI &
 
 echo "Jupyter started on port 8888"
-echo "Access it at: http://YOUR_RUNPOD_IP:8888"
+echo "Access at: http://YOUR_RUNPOD_IP:8888"
+echo "Upload LoRAs via Jupyter to: models/loras/"
 echo ""
 echo "==================================="
 echo "Starting ComfyUI..."
