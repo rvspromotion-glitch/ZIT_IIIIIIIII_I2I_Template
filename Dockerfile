@@ -3,6 +3,7 @@ FROM runpod/pytorch:2.1.1-py3.10-cuda12.1.1-devel-ubuntu22.04
 ENV DEBIAN_FRONTEND=noninteractive
 ENV COMFYUI_PATH=/workspace/ComfyUI
 
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     git \
     wget \
@@ -13,11 +14,12 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /workspace
 
+# Only install packages not in base image
 RUN pip install --no-cache-dir \
-    torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121 \
-    xformers \
+    xformers==0.0.23 \
     ultralytics
 
+# Copy start script
 COPY start.sh /start.sh
 RUN chmod +x /start.sh
 
