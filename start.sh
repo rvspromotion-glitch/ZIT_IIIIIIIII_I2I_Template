@@ -5,135 +5,130 @@ echo "==================================="
 echo "Starting ComfyUI Setup"
 echo "==================================="
 
+# Check if ComfyUI exists, if not install it
+if [ ! -d "/workspace/ComfyUI" ] || [ ! -f "/workspace/ComfyUI/main.py" ]; then
+    echo "ComfyUI not found! Installing..."
+    cd /workspace
+    git clone https://github.com/comfyanonymous/ComfyUI.git
+    cd ComfyUI
+    pip install --no-cache-dir -r requirements.txt
+    
+    # Install ComfyUI Manager
+    cd custom_nodes
+    git clone https://github.com/ltdrdata/ComfyUI-Manager.git
+    pip install --no-cache-dir -r ComfyUI-Manager/requirements.txt || true
+    
+    # Install essential custom nodes
+    git clone https://github.com/rgthree/rgthree-comfy.git && \
+        cd rgthree-comfy && pip install --no-cache-dir -r requirements.txt || true && cd ..
+    git clone https://github.com/cubiq/ComfyUI_essentials.git && \
+        cd ComfyUI_essentials && pip install --no-cache-dir -r requirements.txt || true && cd ..
+    git clone https://github.com/pythongosssss/ComfyUI-Custom-Scripts.git && \
+        cd ComfyUI-Custom-Scripts && pip install --no-cache-dir -r requirements.txt || true && cd ..
+    git clone https://github.com/gseth/ControlAltAI-Nodes.git && \
+        cd ControlAltAI-Nodes && pip install --no-cache-dir -r requirements.txt || true && cd ..
+    
+    cd /workspace/ComfyUI
+fi
+
 cd /workspace/ComfyUI
 
 # Ensure all directories exist
-mkdir -p models/sams
-mkdir -p models/ultralytics/bbox
-mkdir -p models/ultralytics/segm
-mkdir -p models/diffusion_models
-mkdir -p models/vae
-mkdir -p models/clip
-mkdir -p custom_nodes
+mkdir -p models/sams models/ultralytics/bbox models/ultralytics/segm \
+         models/diffusion_models models/vae models/clip models/loras custom_nodes
 
 # ===== DOWNLOAD SAM MODELS (if not exists) =====
-if [ ! -f "models/sams/sam_vit_b_01ec64.pth" ]; then
-    echo "Downloading SAM ViT-B model..."
+echo "Checking SAM models..."
+[ ! -f "models/sams/sam_vit_b_01ec64.pth" ] && \
     wget -q --show-progress -O models/sams/sam_vit_b_01ec64.pth \
-        https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth
-fi
+    https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth &
 
-if [ ! -f "models/sams/sam_vit_l_0b3195.pth" ]; then
-    echo "Downloading SAM ViT-L model..."
+[ ! -f "models/sams/sam_vit_l_0b3195.pth" ] && \
     wget -q --show-progress -O models/sams/sam_vit_l_0b3195.pth \
-        https://dl.fbaipublicfiles.com/segment_anything/sam_vit_l_0b3195.pth
-fi
+    https://dl.fbaipublicfiles.com/segment_anything/sam_vit_l_0b3195.pth &
 
 # ===== DOWNLOAD YOLO BBOX MODELS (if not exists) =====
-if [ ! -f "models/ultralytics/bbox/yolov8n.pt" ]; then
-    echo "Downloading YOLOv8n..."
+echo "Checking YOLO bbox models..."
+[ ! -f "models/ultralytics/bbox/yolov8n.pt" ] && \
     wget -q --show-progress -O models/ultralytics/bbox/yolov8n.pt \
-        https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8n.pt
-fi
+    https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8n.pt &
 
-if [ ! -f "models/ultralytics/bbox/yolov8n-pose.pt" ]; then
-    echo "Downloading YOLOv8n-pose..."
+[ ! -f "models/ultralytics/bbox/yolov8n-pose.pt" ] && \
     wget -q --show-progress -O models/ultralytics/bbox/yolov8n-pose.pt \
-        https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8n-pose.pt
-fi
+    https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8n-pose.pt &
 
-if [ ! -f "models/ultralytics/bbox/yolov8m.pt" ]; then
-    echo "Downloading YOLOv8m..."
+[ ! -f "models/ultralytics/bbox/yolov8m.pt" ] && \
     wget -q --show-progress -O models/ultralytics/bbox/yolov8m.pt \
-        https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8m.pt
-fi
+    https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8m.pt &
 
-if [ ! -f "models/ultralytics/bbox/hand_yolov8n.pt" ]; then
-    echo "Downloading Hand YOLOv8n..."
+[ ! -f "models/ultralytics/bbox/hand_yolov8n.pt" ] && \
     wget -q --show-progress -O models/ultralytics/bbox/hand_yolov8n.pt \
-        https://huggingface.co/Bingsu/adetailer/resolve/main/hand_yolov8n.pt
-fi
+    https://huggingface.co/Bingsu/adetailer/resolve/main/hand_yolov8n.pt &
 
 # ===== DOWNLOAD YOLO SEGMENTATION MODELS (if not exists) =====
-if [ ! -f "models/ultralytics/segm/yolov8n-seg.pt" ]; then
-    echo "Downloading YOLOv8n-seg..."
+echo "Checking YOLO segmentation models..."
+[ ! -f "models/ultralytics/segm/yolov8n-seg.pt" ] && \
     wget -q --show-progress -O models/ultralytics/segm/yolov8n-seg.pt \
-        https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8n-seg.pt
-fi
+    https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8n-seg.pt &
 
-if [ ! -f "models/ultralytics/segm/yolov8m-seg.pt" ]; then
-    echo "Downloading YOLOv8m-seg..."
+[ ! -f "models/ultralytics/segm/yolov8m-seg.pt" ] && \
     wget -q --show-progress -O models/ultralytics/segm/yolov8m-seg.pt \
-        https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8m-seg.pt
-fi
+    https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8m-seg.pt &
 
 # ===== INSTALL YOUR CUSTOM NODES FROM GITHUB =====
-CUSTOM_NODES_REPO="https://github.com/rvspromotion-glitch/IIIIIIII_ZIT_V3.git"
-
 if [ ! -f "/workspace/.custom-nodes-installed" ]; then
-    echo "Installing your custom nodes from GitHub..."
-    cd /tmp
-    git clone "$CUSTOM_NODES_REPO" zit_custom_nodes
-    cd zit_custom_nodes
-    
-    # Loop through each folder and install as custom node
-    for dir in */; do
-        if [ -d "$dir" ]; then
-            node_name=$(basename "$dir")
-            echo "Installing custom node: $node_name"
-            cp -r "$dir" "/workspace/ComfyUI/custom_nodes/$node_name"
-            
-            # Install requirements if exists
-            if [ -f "/workspace/ComfyUI/custom_nodes/$node_name/requirements.txt" ]; then
-                echo "Installing requirements for $node_name..."
-                pip install -q -r "/workspace/ComfyUI/custom_nodes/$node_name/requirements.txt" || true
+    echo "Installing custom nodes from GitHub..."
+    (
+        cd /tmp
+        git clone --depth 1 https://github.com/rvspromotion-glitch/IIIIIIII_ZIT_V3.git zit_custom_nodes
+        cd zit_custom_nodes
+        
+        for dir in */; do
+            if [ -d "$dir" ]; then
+                node_name=$(basename "$dir")
+                echo "Installing: $node_name"
+                cp -r "$dir" "/workspace/ComfyUI/custom_nodes/$node_name"
+                
+                if [ -f "/workspace/ComfyUI/custom_nodes/$node_name/requirements.txt" ]; then
+                    pip install -q -r "/workspace/ComfyUI/custom_nodes/$node_name/requirements.txt" || true
+                fi
             fi
-        fi
-    done
-    
-    rm -rf /tmp/zit_custom_nodes
+        done
+        
+        rm -rf /tmp/zit_custom_nodes
+    ) &
     touch /workspace/.custom-nodes-installed
-    cd /workspace/ComfyUI
 fi
 
 # ===== DOWNLOAD YOUR BBOX MODELS FROM GITHUB =====
-BBOX_MODELS_REPO="https://github.com/rvspromotion-glitch/IIIIIIIII_ZIT_V3_Ultralytics.git"
-
 if [ ! -f "/workspace/.bbox-models-installed" ]; then
-    echo "Downloading your BBOX models from GitHub..."
-    cd /tmp
-    git clone --depth 1 "$BBOX_MODELS_REPO" bbox-models
-    if [ -d "bbox-models" ]; then
-        cp -r bbox-models/* /workspace/ComfyUI/models/ultralytics/bbox/ 2>/dev/null || true
-    fi
-    rm -rf bbox-models
+    echo "Downloading BBOX models from GitHub..."
+    (
+        cd /tmp
+        git clone --depth 1 https://github.com/rvspromotion-glitch/IIIIIIIII_ZIT_V3_Ultralytics.git bbox-models
+        [ -d "bbox-models" ] && cp -r bbox-models/* /workspace/ComfyUI/models/ultralytics/bbox/ 2>/dev/null || true
+        rm -rf bbox-models
+    ) &
     touch /workspace/.bbox-models-installed
-    cd /workspace/ComfyUI
 fi
 
-# Download YOUR specific models
-Z_IMAGE_MODEL="https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/diffusion_models/z_image_turbo_bf16.safetensors"
-Z_INDEX_VAE="https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/vae/ae.safetensors"
-QWEN_CLIP="https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/text_encoders/qwen_3_4b.safetensors"
+# Download main models in background
+echo "Checking main models..."
+[ ! -f "models/diffusion_models/z_image_turbo_bf16.safetensors" ] && \
+    wget -q --show-progress -O models/diffusion_models/z_image_turbo_bf16.safetensors \
+    https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/diffusion_models/z_image_turbo_bf16.safetensors &
 
-if [ ! -f "models/diffusion_models/z_image_turbo_bf16.safetensors" ]; then
-    echo "Downloading Z-Image Turbo BF16 model (~5-10GB)..."
-    wget -q --show-progress -O models/diffusion_models/z_image_turbo_bf16.safetensors "$Z_IMAGE_MODEL"
-fi
+[ ! -f "models/vae/ae.safetensors" ] && \
+    wget -q --show-progress -O models/vae/ae.safetensors \
+    https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/vae/ae.safetensors &
 
-if [ ! -f "models/vae/ae.safetensors" ]; then
-    echo "Downloading Z-Index AE VAE (~1-2GB)..."
-    wget -q --show-progress -O models/vae/ae.safetensors "$Z_INDEX_VAE"
-fi
-
-if [ ! -f "models/clip/qwen_3_4b.safetensors" ]; then
-    echo "Downloading Qwen CLIP (~7-8GB)..."
-    wget -q --show-progress -O models/clip/qwen_3_4b.safetensors "$QWEN_CLIP"
-fi
+[ ! -f "models/clip/qwen_3_4b.safetensors" ] && \
+    wget -q --show-progress -O models/clip/qwen_3_4b.safetensors \
+    https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/text_encoders/qwen_3_4b.safetensors &
 
 # ===== START JUPYTERLAB =====
-echo "Starting JupyterLab on port 8888..."
-nohup jupyter lab \
+echo "Starting JupyterLab..."
+jupyter lab \
     --ip=0.0.0.0 \
     --port=8888 \
     --no-browser \
@@ -144,8 +139,6 @@ nohup jupyter lab \
     --ServerApp.root_dir=/workspace/ComfyUI \
     >/workspace/jupyter.log 2>&1 &
 
-sleep 2
-
 echo "==================================="
 echo "Setup Complete!"
 echo "==================================="
@@ -153,7 +146,9 @@ echo "ComfyUI: http://YOUR_POD:8188"
 echo "Jupyter:  http://YOUR_POD:8888"
 echo "==================================="
 echo "Starting ComfyUI..."
+echo "Models downloading in background..."
 echo "==================================="
 
-# Start ComfyUI
+# Start ComfyUI immediately (models will download in background)
+cd /workspace/ComfyUI
 exec python main.py --listen 0.0.0.0 --port 8188
