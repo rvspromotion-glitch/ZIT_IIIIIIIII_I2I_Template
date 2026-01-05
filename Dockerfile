@@ -13,14 +13,17 @@ WORKDIR /workspace
 
 # FIX: Pin compatible versions to prevent conflicts
 RUN pip install --no-cache-dir \
-    "numpy<2" \
-    "transformers==4.36.2" \
+    "numpy<2.0.0" \
+    "transformers>=4.40.0" \
     "torch==2.1.1" \
     "torchvision==0.16.1" \
+    "tokenizers>=0.19.0" \
     xformers==0.0.23 \
     ultralytics \
     jupyterlab \
-    sageattention
+    sageattention \
+    sentencepiece \
+    protobuf
 
 # Install ComfyUI
 RUN git clone https://github.com/comfyanonymous/ComfyUI.git && \
