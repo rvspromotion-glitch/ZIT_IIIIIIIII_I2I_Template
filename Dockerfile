@@ -1,5 +1,4 @@
 FROM runpod/pytorch:2.1.1-py3.10-cuda12.1.1-devel-ubuntu22.04
-
 ENV DEBIAN_FRONTEND=noninteractive
 ENV COMFYUI_PATH=/workspace/ComfyUI
 
@@ -12,26 +11,30 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /workspace
 
-# Install Python packages (INCLUDES sageattention!)
+# FIX: Pin compatible versions to prevent conflicts
 RUN pip install --no-cache-dir \
+    "numpy<2" \
+    "transformers==4.36.2" \
+    "torch==2.1.1" \
+    "torchvision==0.16.1" \
     xformers==0.0.23 \
     ultralytics \
     jupyterlab \
     sageattention
 
-# Install ComfyUI (lightweight, ~100MB)
+# Install ComfyUI
 RUN git clone https://github.com/comfyanonymous/ComfyUI.git && \
     cd ComfyUI && \
     pip install --no-cache-dir -r requirements.txt
 
 WORKDIR /workspace/ComfyUI
 
-# Install ComfyUI Manager (lightweight)
+# Install ComfyUI Manager
 RUN cd custom_nodes && \
     git clone https://github.com/ltdrdata/ComfyUI-Manager.git && \
     pip install --no-cache-dir -r ComfyUI-Manager/requirements.txt || true
 
-# Install essential custom nodes (lightweight, code only)
+# Install essential custom nodes
 RUN cd custom_nodes && \
     git clone https://github.com/rgthree/rgthree-comfy.git && \
     git clone https://github.com/cubiq/ComfyUI_essentials.git && \
