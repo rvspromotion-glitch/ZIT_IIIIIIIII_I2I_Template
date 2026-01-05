@@ -61,11 +61,11 @@ RUN git clone https://github.com/gseth/ControlAltAI-Nodes.git && \
     cd ControlAltAI-Nodes && \
     pip install -r requirements.txt || true
 
-# Download SAM models (BAKED IN)
+# Download SAM models (BAKED IN) - Clean up layers to save space
 WORKDIR /workspace/ComfyUI/models/sams
 RUN wget -q -O sam_vit_b_01ec64.pth https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth && \
     wget -q -O sam_vit_l_0b3195.pth https://dl.fbaipublicfiles.com/segment_anything/sam_vit_l_0b3195.pth && \
-    wget -q -O sam_vit_h_4b8939.pth https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth
+    rm -rf /tmp/* /var/tmp/*
 
 # Download YOLOv8 detection models (BAKED IN)
 WORKDIR /workspace/ComfyUI/models/ultralytics/bbox
@@ -73,13 +73,14 @@ RUN wget -q -O yolov8n.pt https://github.com/ultralytics/assets/releases/downloa
     wget -q -O yolov8n-pose.pt https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8n-pose.pt && \
     wget -q -O yolov8m.pt https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8m.pt && \
     wget -q -O yolov8n-face.pt https://github.com/derronqi/yolov8-face/releases/download/v0.0.0/yolov8n-face.pt || true && \
-    wget -q -O hand_yolov8n.pt https://huggingface.co/Bingsu/adetailer/resolve/main/hand_yolov8n.pt
+    wget -q -O hand_yolov8n.pt https://huggingface.co/Bingsu/adetailer/resolve/main/hand_yolov8n.pt && \
+    rm -rf /tmp/* /var/tmp/*
 
 # Download YOLOv8 segmentation models (BAKED IN)
 WORKDIR /workspace/ComfyUI/models/ultralytics/segm
 RUN wget -q -O yolov8n-seg.pt https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8n-seg.pt && \
     wget -q -O yolov8m-seg.pt https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8m-seg.pt && \
-    wget -q -O yolov8l-seg.pt https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8l-seg.pt
+    rm -rf /tmp/* /var/tmp/*
 
 # Set permissions
 RUN chmod -R 777 /workspace/ComfyUI/models/loras \
