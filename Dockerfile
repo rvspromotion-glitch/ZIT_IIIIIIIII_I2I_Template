@@ -5,22 +5,23 @@ ENV COMFYUI_PATH=/workspace/ComfyUI
 
 RUN apt-get update && apt-get install -y \
     git wget curl \
+    libgl1 libglib2.0-0 \
+    ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /workspace
 
-# ---- CRITICAL: keep numpy < 2 to avoid compiled-extension issues ----
+# Keep numpy safe
 RUN pip install --no-cache-dir "numpy<2"
 
-# ---- CRITICAL: upgrade torch stack (CUDA 12.1 wheels) ----
-# This resolves: torch.utils._pytree.register_pytree_node missing
-RUN pip install --no-cache-dir --upgrade \
+# Force-upgrade torch stack
+RUN pip install --no-cache-dir --upgrade --force-reinstall \
     torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 
-# Reinstall xformers AFTER torch upgrade (do NOT pin 0.0.23 anymore)
+# Reinstall xformers AFTER torch
 RUN pip install --no-cache-dir --upgrade xformers
 
-# Your other deps (keep these AFTER torch/xformers)
+# Other deps
 RUN pip install --no-cache-dir \
     ultralytics \
     jupyterlab \
@@ -35,23 +36,13 @@ RUN git clone https://github.com/comfyanonymous/ComfyUI.git && \
 
 WORKDIR /workspace/ComfyUI
 
-# ComfyUI Manager
+# Custom nodes (code only, no deps here)
 RUN cd custom_nodes && \
     git clone https://github.com/ltdrdata/ComfyUI-Manager.git && \
-    pip install --no-cache-dir -r ComfyUI-Manager/requirements.txt || true
-
-# Essential custom nodes
-RUN cd custom_nodes && \
     git clone https://github.com/rgthree/rgthree-comfy.git && \
     git clone https://github.com/cubiq/ComfyUI_essentials.git && \
     git clone https://github.com/pythongosssss/ComfyUI-Custom-Scripts.git && \
     git clone https://github.com/gseth/ControlAltAI-Nodes.git
-
-# Node requirements (best-effort)
-RUN cd custom_nodes/rgthree-comfy && pip install --no-cache-dir -r requirements.txt || true
-RUN cd custom_nodes/ComfyUI_essentials && pip install --no-cache-dir -r requirements.txt || true
-RUN cd custom_nodes/ComfyUI-Custom-Scripts && pip install --no-cache-dir -r requirements.txt || true
-RUN cd custom_nodes/ControlAltAI-Nodes && pip install --no-cache-dir -r requirements.txt || true
 
 # Model directories
 RUN mkdir -p models/sams \
