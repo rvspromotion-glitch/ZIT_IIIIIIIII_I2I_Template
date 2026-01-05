@@ -5,9 +5,11 @@ echo "==================================="
 echo "Starting ComfyUI Setup"
 echo "==================================="
 
-COMFY_DIR="/workspace/ComfyUI"
+COMFY_DIR="${COMFYUI_PATH:-/workspace/ComfyUI}"
 CUSTOM_NODES="${COMFY_DIR}/custom_nodes"
 MODELS_DIR="${COMFY_DIR}/models"
+
+mkdir -p "${CUSTOM_NODES}" "${MODELS_DIR}"
 
 # -----------------------------
 # Helpers
@@ -23,30 +25,30 @@ download() {
   fi
 
   echo "[models] downloading: $out"
-  # resume supported
   if command -v curl >/dev/null 2>&1; then
-    curl -L --fail --retry 5 --retry-delay 2 -C - -o "$out" "$url"
+    curl -L --fail --retry 8 --retry-delay 2 -C - -o "$out" "$url"
   else
     wget -c -O "$out" "$url"
   fi
 }
 
-clone_or_update() {
-  local url="$1"
-  local dir="$2"
-
-  if [ -d "$dir/.git" ]; then
-    echo "[git] update: $dir"
-    git -C "$dir" pull --rebase || git -C "$dir" pull || true
-    git -C "$dir" submodule update --init --recursive || true
+# Install requirements but DO NOT allow it to upgrade torch/torchvision/torchaudio
+safe_pip_install_req() {
+  local req="$1"
+  # If req contains torch lines, filter them out to avoid breaking the base torch
+  if grep -qiE '^(torch|torchvision|torchaudio)([<=> ].*)?$' "$req"; then
+    echo "    [pip] filtering torch lines in $req"
+    tmpreq="$(mktemp)"
+    grep -viE '^(torch|torchvision|torchaudio)([<=> ].*)?$' "$req" > "$tmpreq" || true
+    pip install --no-cache-dir -r "$tmpreq" -q || true
+    rm -f "$tmpreq"
   else
-    echo "[git] clone: $dir"
-    git clone --recurse-submodules --progress "$url" "$dir"
+    pip install --no-cache-dir -r "$req" -q || true
   fi
 }
 
 # -----------------------------
-# Keep env sane (do NOT force-upgrade transformers here)
+# Keep env sane
 # -----------------------------
 echo "[pip] Ensuring safe base versions..."
 pip install --no-cache-dir "numpy<2" -q || true
@@ -72,7 +74,7 @@ PY
 # Ensure ComfyUI exists
 # -----------------------------
 if [ ! -d "$COMFY_DIR" ] || [ ! -f "$COMFY_DIR/main.py" ]; then
-  echo "ComfyUI not found! Installing..."
+  echo "[comfy] ComfyUI not found, cloning..."
   cd /workspace
   git clone https://github.com/comfyanonymous/ComfyUI.git
   cd "$COMFY_DIR"
@@ -89,25 +91,22 @@ mkdir -p \
   "${MODELS_DIR}/diffusion_models" \
   "${MODELS_DIR}/vae" \
   "${MODELS_DIR}/clip" \
-  "${MODELS_DIR}/loras" \
-  "${CUSTOM_NODES}"
+  "${MODELS_DIR}/loras"
 
 chmod -R 777 "${MODELS_DIR}/loras" || true
 
 # -----------------------------
-# Download models (HF + SAM + YOLO)
-# This is deterministic + resumable.
-# If you want background, you can append "&" to the whole block.
+# Download models
 # -----------------------------
 echo "[models] Downloading required models..."
 
-# SAM models
+# SAM
 download "https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth" \
   "${MODELS_DIR}/sams/sam_vit_b_01ec64.pth"
 download "https://dl.fbaipublicfiles.com/segment_anything/sam_vit_l_0b3195.pth" \
   "${MODELS_DIR}/sams/sam_vit_l_0b3195.pth"
 
-# YOLO bbox
+# YOLO
 download "https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8n.pt" \
   "${MODELS_DIR}/ultralytics/bbox/yolov8n.pt"
 download "https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8n-pose.pt" \
@@ -117,13 +116,12 @@ download "https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8m
 download "https://huggingface.co/Bingsu/adetailer/resolve/main/hand_yolov8n.pt" \
   "${MODELS_DIR}/ultralytics/bbox/hand_yolov8n.pt"
 
-# YOLO segmentation
 download "https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8n-seg.pt" \
   "${MODELS_DIR}/ultralytics/segm/yolov8n-seg.pt"
 download "https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8m-seg.pt" \
   "${MODELS_DIR}/ultralytics/segm/yolov8m-seg.pt"
 
-# HuggingFace models you mentioned (z-image + qwen clip + ae)
+# z-image turbo bundle (Comfy-Org)
 download "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/diffusion_models/z_image_turbo_bf16.safetensors" \
   "${MODELS_DIR}/diffusion_models/z_image_turbo_bf16.safetensors"
 download "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/vae/ae.safetensors" \
@@ -131,35 +129,41 @@ download "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_file
 download "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/text_encoders/qwen_3_4b.safetensors" \
   "${MODELS_DIR}/clip/qwen_3_4b.safetensors"
 
-echo "[models] All required model downloads completed."
+echo "[models] Model downloads completed."
 
 # -----------------------------
-# Install nodes from your repo (CUSTOM GIT #1) - FIXED: recurse submodules
+# Install nodes from your repo
 # -----------------------------
 if [ ! -f "/workspace/.custom-nodes-installed" ]; then
   echo "[nodes] Installing custom nodes from your repo..."
   tmp="/tmp/zit_custom_nodes"
   rm -rf "$tmp"
 
-  # IMPORTANT FIX: recurse-submodules so folders are not empty
+  # recurse submodules so it actually contains code
   git clone --recurse-submodules --progress "https://github.com/rvspromotion-glitch/IIIIIIII_ZIT_V3.git" "$tmp"
   git -C "$tmp" submodule update --init --recursive || true
 
-  # Copy each top-level folder into custom_nodes (exclude .git stuff)
-  for dir in "$tmp"/*/; do
+  # Copy each top-level folder into custom_nodes (skip non-dirs)
+  for dir in "$tmp"/*; do
     [ -d "$dir" ] || continue
     node_name="$(basename "$dir")"
-    echo "  - installing: $node_name"
 
+    # skip git metadata if present
+    if [ "$node_name" = ".git" ] || [ "$node_name" = ".github" ]; then
+      continue
+    fi
+
+    echo "  - installing: $node_name"
     rm -rf "${CUSTOM_NODES}/${node_name}"
     mkdir -p "${CUSTOM_NODES}/${node_name}"
 
-    (cd "$dir" && tar --exclude=.git --exclude=.gitmodules -cf - .) | (cd "${CUSTOM_NODES}/${node_name}" && tar -xf -)
+    # copy everything except .git*
+    (cd "$dir" && tar --exclude=.git --exclude=.gitmodules --exclude=.github -cf - .) | (cd "${CUSTOM_NODES}/${node_name}" && tar -xf -)
 
-    # install per-node requirements (best effort)
+    # install per-node requirements safely (no torch upgrades)
     if [ -f "${CUSTOM_NODES}/${node_name}/requirements.txt" ]; then
-      echo "    pip: ${node_name}/requirements.txt"
-      pip install -q -r "${CUSTOM_NODES}/${node_name}/requirements.txt" || true
+      echo "    [pip] ${node_name}/requirements.txt"
+      safe_pip_install_req "${CUSTOM_NODES}/${node_name}/requirements.txt"
     fi
   done
 
@@ -168,7 +172,7 @@ if [ ! -f "/workspace/.custom-nodes-installed" ]; then
 fi
 
 # -----------------------------
-# Download BBOX models repo (CUSTOM GIT #2)
+# Custom git #2: bbox models repo
 # -----------------------------
 if [ ! -f "/workspace/.bbox-models-installed" ]; then
   echo "[bbox] Downloading BBOX models repo..."
@@ -190,7 +194,7 @@ rm -rf "${CUSTOM_NODES}/.git" "${CUSTOM_NODES}/.gitmodules" "${CUSTOM_NODES}/.ip
 # -----------------------------
 # Start JupyterLab
 # -----------------------------
-echo "Starting JupyterLab..."
+echo "[jupyter] Starting JupyterLab..."
 jupyter lab \
   --ip=0.0.0.0 \
   --port=8888 \
@@ -210,7 +214,7 @@ echo "Jupyter: http://YOUR_POD:8888"
 echo "==================================="
 
 # -----------------------------
-# Start ComfyUI (keep container alive if crash)
+# Start ComfyUI
 # -----------------------------
 cd "${COMFY_DIR}"
 if ! python3 main.py --listen 0.0.0.0 --port 8188; then
