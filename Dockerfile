@@ -1,29 +1,19 @@
-FROM nvidia/cuda:12.1.0-runtime-ubuntu22.04
+FROM runpod/pytorch:2.1.1-py3.10-cuda12.1.1-devel-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
-ENV PYTHONUNBUFFERED=1
+ENV COMFYUI_PATH=/workspace/ComfyUI
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
-    python3.10 \
-    python3-pip \
     git \
     wget \
     curl \
-    libgl1-mesa-glx \
-    libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
-
-# Set Python 3.10 as default
-RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.10 1 && \
-    update-alternatives --install /usr/bin/pip pip /usr/bin/pip3 1
 
 WORKDIR /workspace
 
-# Install PyTorch and essential packages
+# Install ComfyUI dependencies
 RUN pip install --no-cache-dir \
-    torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121 \
-    && pip install --no-cache-dir \
     xformers \
     ultralytics \
     jupyterlab \
@@ -36,7 +26,25 @@ RUN git clone https://github.com/comfyanonymous/ComfyUI.git && \
 
 WORKDIR /workspace/ComfyUI
 
-# Create directories
+# Install ComfyUI Manager
+RUN cd custom_nodes && \
+    git clone https://github.com/ltdrdata/ComfyUI-Manager.git && \
+    pip install --no-cache-dir -r ComfyUI-Manager/requirements.txt || true
+
+# Install essential custom nodes
+RUN cd custom_nodes && \
+    git clone https://github.com/rgthree/rgthree-comfy.git && \
+    git clone https://github.com/cubiq/ComfyUI_essentials.git && \
+    git clone https://github.com/pythongosssss/ComfyUI-Custom-Scripts.git && \
+    git clone https://github.com/gseth/ControlAltAI-Nodes.git
+
+# Install requirements for custom nodes
+RUN cd custom_nodes/rgthree-comfy && pip install --no-cache-dir -r requirements.txt || true
+RUN cd custom_nodes/ComfyUI_essentials && pip install --no-cache-dir -r requirements.txt || true
+RUN cd custom_nodes/ComfyUI-Custom-Scripts && pip install --no-cache-dir -r requirements.txt || true
+RUN cd custom_nodes/ControlAltAI-Nodes && pip install --no-cache-dir -r requirements.txt || true
+
+# Create model directories
 RUN mkdir -p models/sams \
     models/ultralytics/bbox \
     models/ultralytics/segm \
@@ -45,46 +53,32 @@ RUN mkdir -p models/sams \
     models/clip \
     models/loras
 
-# Download SAM models
-RUN cd models/sams && \
-    wget -q https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth && \
-    wget -q https://dl.fbaipublicfiles.com/segment_anything/sam_vit_l_0b3195.pth
+# Download SAM models (small and medium only)
+RUN wget -q -O models/sams/sam_vit_b_01ec64.pth \
+    https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth
+RUN wget -q -O models/sams/sam_vit_l_0b3195.pth \
+    https://dl.fbaipublicfiles.com/segment_anything/sam_vit_l_0b3195.pth
 
-# Download YOLO models
-RUN cd models/ultralytics/bbox && \
-    wget -q -O yolov8n.pt https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8n.pt && \
-    wget -q -O yolov8n-pose.pt https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8n-pose.pt && \
-    wget -q -O yolov8m.pt https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8m.pt && \
-    wget -q -O hand_yolov8n.pt https://huggingface.co/Bingsu/adetailer/resolve/main/hand_yolov8n.pt
+# Download YOLO BBOX models
+RUN wget -q -O models/ultralytics/bbox/yolov8n.pt \
+    https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8n.pt
+RUN wget -q -O models/ultralytics/bbox/yolov8n-pose.pt \
+    https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8n-pose.pt
+RUN wget -q -O models/ultralytics/bbox/yolov8m.pt \
+    https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8m.pt
+RUN wget -q -O models/ultralytics/bbox/hand_yolov8n.pt \
+    https://huggingface.co/Bingsu/adetailer/resolve/main/hand_yolov8n.pt
 
-RUN cd models/ultralytics/segm && \
-    wget -q -O yolov8n-seg.pt https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8n-seg.pt && \
-    wget -q -O yolov8m-seg.pt https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8m-seg.pt
-
-# Install ComfyUI Manager
-RUN cd custom_nodes && \
-    git clone https://github.com/ltdrdata/ComfyUI-Manager.git && \
-    cd ComfyUI-Manager && \
-    pip install --no-cache-dir -r requirements.txt || true
-
-# Install essential custom nodes
-RUN cd custom_nodes && \
-    git clone https://github.com/rgthree/rgthree-comfy.git && \
-    git clone https://github.com/cubiq/ComfyUI_essentials.git && \
-    git clone https://github.com/pythongosssss/ComfyUI-Custom-Scripts.git && \
-    git clone https://github.com/gseth/ControlAltAI-Nodes.git && \
-    for dir in rgthree-comfy ComfyUI_essentials ComfyUI-Custom-Scripts ControlAltAI-Nodes; do \
-        if [ -f "$dir/requirements.txt" ]; then \
-            pip install --no-cache-dir -r "$dir/requirements.txt" || true; \
-        fi \
-    done
-
-# Cleanup
-RUN rm -rf /root/.cache/pip /tmp/* /var/tmp/*
+# Download YOLO segmentation models
+RUN wget -q -O models/ultralytics/segm/yolov8n-seg.pt \
+    https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8n-seg.pt
+RUN wget -q -O models/ultralytics/segm/yolov8m-seg.pt \
+    https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8m-seg.pt
 
 # Set permissions
 RUN chmod -R 777 models/loras
 
+# Copy startup script
 COPY start.sh /start.sh
 RUN chmod +x /start.sh
 
