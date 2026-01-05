@@ -5,6 +5,10 @@ echo "==================================="
 echo "Starting ComfyUI Setup"
 echo "==================================="
 
+# Fix dependencies first
+echo "Ensuring compatible dependencies..."
+pip install --no-cache-dir "numpy<2" "transformers==4.36.2" "torch==2.1.1" "torchvision==0.16.1" -q
+
 # Check if ComfyUI exists, if not install it
 if [ ! -d "/workspace/ComfyUI" ] || [ ! -f "/workspace/ComfyUI/main.py" ]; then
     echo "ComfyUI not found! Installing..."
