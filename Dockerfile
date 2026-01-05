@@ -12,26 +12,26 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /workspace
 
-# Install ComfyUI dependencies
+# Install Python packages (INCLUDES sageattention!)
 RUN pip install --no-cache-dir \
-    xformers \
+    xformers==0.0.23 \
     ultralytics \
     jupyterlab \
     sageattention
 
-# Clone ComfyUI
+# Install ComfyUI (lightweight, ~100MB)
 RUN git clone https://github.com/comfyanonymous/ComfyUI.git && \
     cd ComfyUI && \
     pip install --no-cache-dir -r requirements.txt
 
 WORKDIR /workspace/ComfyUI
 
-# Install ComfyUI Manager
+# Install ComfyUI Manager (lightweight)
 RUN cd custom_nodes && \
     git clone https://github.com/ltdrdata/ComfyUI-Manager.git && \
     pip install --no-cache-dir -r ComfyUI-Manager/requirements.txt || true
 
-# Install essential custom nodes
+# Install essential custom nodes (lightweight, code only)
 RUN cd custom_nodes && \
     git clone https://github.com/rgthree/rgthree-comfy.git && \
     git clone https://github.com/cubiq/ComfyUI_essentials.git && \
@@ -52,28 +52,6 @@ RUN mkdir -p models/sams \
     models/vae \
     models/clip \
     models/loras
-
-# Download SAM models (small and medium only)
-RUN wget -q -O models/sams/sam_vit_b_01ec64.pth \
-    https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth
-RUN wget -q -O models/sams/sam_vit_l_0b3195.pth \
-    https://dl.fbaipublicfiles.com/segment_anything/sam_vit_l_0b3195.pth
-
-# Download YOLO BBOX models
-RUN wget -q -O models/ultralytics/bbox/yolov8n.pt \
-    https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8n.pt
-RUN wget -q -O models/ultralytics/bbox/yolov8n-pose.pt \
-    https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8n-pose.pt
-RUN wget -q -O models/ultralytics/bbox/yolov8m.pt \
-    https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8m.pt
-RUN wget -q -O models/ultralytics/bbox/hand_yolov8n.pt \
-    https://huggingface.co/Bingsu/adetailer/resolve/main/hand_yolov8n.pt
-
-# Download YOLO segmentation models
-RUN wget -q -O models/ultralytics/segm/yolov8n-seg.pt \
-    https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8n-seg.pt
-RUN wget -q -O models/ultralytics/segm/yolov8m-seg.pt \
-    https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8m-seg.pt
 
 # Set permissions
 RUN chmod -R 777 models/loras
