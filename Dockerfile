@@ -11,23 +11,19 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /workspace
 
-# Keep numpy safe
+# Keep numpy safe (prevents many binary-extension issues)
 RUN pip install --no-cache-dir "numpy<2"
 
-# Force-upgrade torch stack
-RUN pip install --no-cache-dir --upgrade --force-reinstall \
-    torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+# xformers must match the torch in the base image (torch 2.1.1 here)
+RUN pip install --no-cache-dir --upgrade xformers==0.0.23
 
-# Reinstall xformers AFTER torch
-RUN pip install --no-cache-dir --upgrade xformers
-
-# Other deps
-RUN pip install --no-cache-dir \
-    ultralytics \
-    jupyterlab \
-    sageattention \
-    sentencepiece \
-    protobuf
+# Other deps (split so you can see which one fails if it ever does)
+RUN pip install --no-cache-dir ultralytics
+RUN pip install --no-cache-dir jupyterlab
+RUN pip install --no-cache-dir sentencepiece
+RUN pip install --no-cache-dir protobuf
+# optional: may not have a wheel for your platform; dont fail the build
+RUN pip install --no-cache-dir sageattention || true
 
 # Install ComfyUI
 RUN git clone https://github.com/comfyanonymous/ComfyUI.git && \
@@ -36,7 +32,7 @@ RUN git clone https://github.com/comfyanonymous/ComfyUI.git && \
 
 WORKDIR /workspace/ComfyUI
 
-# Custom nodes (code only, no deps here)
+# Custom nodes (code only, deps handled in start.sh)
 RUN cd custom_nodes && \
     git clone https://github.com/ltdrdata/ComfyUI-Manager.git && \
     git clone https://github.com/rgthree/rgthree-comfy.git && \
