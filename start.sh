@@ -2,7 +2,7 @@
 set -e
 
 echo "==================================="
-echo "Starting ComfyUI Setup for RunPod"
+echo "Starting ComfyUI (Fast Boot Mode)"
 echo "==================================="
 
 CUSTOM_NODES_REPO="https://github.com/rvspromotion-glitch/IIIIIIII_ZIT_V3.git"
@@ -12,181 +12,69 @@ Z_IMAGE_MODEL="https://www.dropbox.com/scl/fi/sq1njtjpq65xiwidi6fvx/z_image_turb
 Z_INDEX_VAE="https://www.dropbox.com/scl/fi/g3gqm68awb0a1cu20ilof/z-index-ae.safetensors?rlkey=l0eg5y0xdmuqnr1w3k1tg6w3d&st=84so75px&dl=1"
 QWEN_CLIP="https://www.dropbox.com/scl/fi/q9j0809na155sfmuvsyk0/qwen_3_4b.safetensors?rlkey=v741nmfomz66y3t0pyrihex88&st=rsa1xyvv&dl=1"
 
-mkdir -p /workspace/ComfyUI
-cd /workspace
+cd /workspace/ComfyUI
 
-if [ ! -d "ComfyUI/.git" ]; then
-    echo "Cloning ComfyUI..."
-    git clone https://github.com/comfyanonymous/ComfyUI.git
-else
-    echo "ComfyUI already exists, pulling latest changes..."
-    cd ComfyUI
-    git pull
+# Only download YOUR custom nodes (not already baked in)
+if [ ! -d "custom_nodes/IIIIIIII_ZIT_V3" ]; then
+    echo "Installing your custom ZIT nodes..."
+    cd custom_nodes
+    git clone "$CUSTOM_NODES_REPO" IIIIIIII_ZIT_V3
+    
+    if [ -f "IIIIIIII_ZIT_V3/requirements.txt" ]; then
+        pip install -q -r IIIIIIII_ZIT_V3/requirements.txt
+    fi
+    
     cd ..
 fi
 
-cd ComfyUI
-
-echo "Installing ComfyUI requirements..."
-pip install -r requirements.txt
-
-mkdir -p custom_nodes
-
-echo "Cloning custom nodes repository..."
-if [ ! -d "/tmp/zit_custom_nodes/.git" ]; then
+# Download BBOX models from your repo (only if not present)
+if [ ! -d "/tmp/bbox-check" ]; then
+    mkdir -p /tmp/bbox-check
+    echo "Checking for BBOX models..."
     cd /tmp
-    git clone "$CUSTOM_NODES_REPO" zit_custom_nodes
-    cd zit_custom_nodes
-    
-    echo "Installing custom nodes from repository..."
-    for dir in */; do
-        if [ -d "$dir" ]; then
-            node_name=$(basename "$dir")
-            echo "Processing custom node: $node_name"
-            
-            cp -r "$dir" "/workspace/ComfyUI/custom_nodes/$node_name"
-            
-            if [ -f "/workspace/ComfyUI/custom_nodes/$node_name/requirements.txt" ]; then
-                echo "Installing requirements for $node_name..."
-                pip install -r "/workspace/ComfyUI/custom_nodes/$node_name/requirements.txt"
-            fi
-        fi
-    done
-    
-    cd /workspace/ComfyUI
-    rm -rf /tmp/zit_custom_nodes
-fi
-
-mkdir -p models/diffusion_models
-mkdir -p models/vae
-mkdir -p models/clip
-mkdir -p models/ultralytics/bbox
-mkdir -p models/sams
-mkdir -p models/ultralytics/segm
-mkdir -p models/loras
-mkdir -p models/embeddings
-mkdir -p models/hypernetworks
-
-# Set permissions for upload directories
-chmod -R 777 models/loras models/embeddings models/hypernetworks
-
-echo "Downloading BBOX models from GitHub..."
-if [ ! -d "/tmp/bbox-models/.git" ]; then
-    cd /tmp
-    git clone "$BBOX_MODELS_REPO" bbox-models
+    git clone --depth 1 "$BBOX_MODELS_REPO" bbox-models
     
     if [ -d "bbox-models" ]; then
-        echo "Copying BBOX models..."
-        cp -r bbox-models/* /workspace/ComfyUI/models/ultralytics/bbox/
+        cp -rn bbox-models/* /workspace/ComfyUI/models/ultralytics/bbox/ 2>/dev/null || true
     fi
     
     rm -rf bbox-models
     cd /workspace/ComfyUI
 fi
 
-if [ ! -f "models/diffusion_models/z_image_turbo_bf16.safetensors" ]; then
-    echo "Downloading z-image turbo bf16 model..."
-    wget --content-disposition -O models/diffusion_models/z_image_turbo_bf16.safetensors "$Z_IMAGE_MODEL"
-fi
+# Download your specific models (only if missing)
+[ ! -f "models/diffusion_models/z_image_turbo_bf16.safetensors" ] && \
+    echo "Downloading Z-Image model..." && \
+    wget -q --content-disposition -O models/diffusion_models/z_image_turbo_bf16.safetensors "$Z_IMAGE_MODEL" &
 
-if [ ! -f "models/vae/z-index-ae.safetensors" ]; then
-    echo "Downloading z-index AE (VAE)..."
-    wget --content-disposition -O models/vae/z-index-ae.safetensors "$Z_INDEX_VAE"
-fi
+[ ! -f "models/vae/z-index-ae.safetensors" ] && \
+    echo "Downloading VAE..." && \
+    wget -q --content-disposition -O models/vae/z-index-ae.safetensors "$Z_INDEX_VAE" &
 
-if [ ! -f "models/clip/qwen_3_4b.safetensors" ]; then
-    echo "Downloading Qwen CLIP..."
-    wget --content-disposition -O models/clip/qwen_3_4b.safetensors "$QWEN_CLIP"
-fi
+[ ! -f "models/clip/qwen_3_4b.safetensors" ] && \
+    echo "Downloading CLIP..." && \
+    wget -q --content-disposition -O models/clip/qwen_3_4b.safetensors "$QWEN_CLIP" &
 
-echo "Downloading SAM (Segment Anything) models..."
-if [ ! -f "models/sams/sam_vit_b_01ec64.pth" ]; then
-    echo "Downloading SAM ViT-B..."
-    wget -O models/sams/sam_vit_b_01ec64.pth https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth
-fi
-
-if [ ! -f "models/sams/sam_vit_l_0b3195.pth" ]; then
-    echo "Downloading SAM ViT-L..."
-    wget -O models/sams/sam_vit_l_0b3195.pth https://dl.fbaipublicfiles.com/segment_anything/sam_vit_l_0b3195.pth
-fi
-
-if [ ! -f "models/sams/sam_vit_h_4b8939.pth" ]; then
-    echo "Downloading SAM ViT-H (largest, most accurate)..."
-    wget -O models/sams/sam_vit_h_4b8939.pth https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth
-fi
-
-echo "Downloading YOLOv8 detection models..."
-# YOLOv8 Nano - fastest, for general detection
-if [ ! -f "models/ultralytics/bbox/yolov8n.pt" ]; then
-    wget -O models/ultralytics/bbox/yolov8n.pt https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8n.pt
-fi
-
-# YOLOv8 pose detection
-if [ ! -f "models/ultralytics/bbox/yolov8n-pose.pt" ]; then
-    wget -O models/ultralytics/bbox/yolov8n-pose.pt https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8n-pose.pt
-fi
-
-# YOLOv8 Medium - balanced
-if [ ! -f "models/ultralytics/bbox/yolov8m.pt" ]; then
-    wget -O models/ultralytics/bbox/yolov8m.pt https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8m.pt
-fi
-
-echo "Downloading YOLOv8 segmentation models..."
-# YOLOv8 Nano Segmentation
-if [ ! -f "models/ultralytics/segm/yolov8n-seg.pt" ]; then
-    wget -O models/ultralytics/segm/yolov8n-seg.pt https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8n-seg.pt
-fi
-
-# YOLOv8 Medium Segmentation
-if [ ! -f "models/ultralytics/segm/yolov8m-seg.pt" ]; then
-    wget -O models/ultralytics/segm/yolov8m-seg.pt https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8m-seg.pt
-fi
-
-# YOLOv8 Large Segmentation (more accurate)
-if [ ! -f "models/ultralytics/segm/yolov8l-seg.pt" ]; then
-    wget -O models/ultralytics/segm/yolov8l-seg.pt https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8l-seg.pt
-fi
-
-echo "Downloading specialized detection models..."
-
-# Face detection - using lindevs YOLOv8n-Face model (well-maintained, proven to work)
-if [ ! -f "models/ultralytics/bbox/yolov8n-face.pt" ]; then
-    echo "Downloading YOLOv8n Face detection model..."
-    wget -O models/ultralytics/bbox/yolov8n-face.pt \
-        https://github.com/lindevs/yolov8-face/releases/download/v1.0.0/yolov8n-face.pt || \
-    echo "Face model download failed, will use general detection model"
-fi
-
-# Hand detection - using Hugging Face model (confirmed working)
-if [ ! -f "models/ultralytics/bbox/hand_yolov8n.pt" ]; then
-    echo "Downloading hand detection model..."
-    wget -O models/ultralytics/bbox/hand_yolov8n.pt \
-        https://huggingface.co/Bingsu/adetailer/resolve/main/hand_yolov8n.pt
-fi
-
-if [ ! -d "custom_nodes/ComfyUI-Manager/.git" ]; then
-    echo "Installing ComfyUI Manager..."
-    git clone https://github.com/ltdrdata/ComfyUI-Manager.git custom_nodes/ComfyUI-Manager
-    if [ -f "custom_nodes/ComfyUI-Manager/requirements.txt" ]; then
-        pip install -r custom_nodes/ComfyUI-Manager/requirements.txt
-    fi
-fi
+# Wait for background downloads
+wait
 
 echo "==================================="
-echo "Starting Jupyter Notebook..."
+echo "Starting JupyterLab..."
 echo "==================================="
 
-# Start Jupyter in the background
-jupyter notebook --ip=0.0.0.0 --port=8888 --no-browser --allow-root \
-    --NotebookApp.token='' --NotebookApp.password='' \
-    --notebook-dir=/workspace/ComfyUI &
+mkdir -p /root/.jupyter
 
-echo "Jupyter started on port 8888"
-echo "Access at: http://YOUR_RUNPOD_IP:8888"
-echo "Upload LoRAs via Jupyter to: models/loras/"
-echo ""
-echo "==================================="
-echo "Starting ComfyUI..."
+nohup jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root \
+    --ServerApp.token='' \
+    --ServerApp.password='' \
+    --ServerApp.allow_origin='*' \
+    --ServerApp.root_dir=/workspace/ComfyUI \
+    > /workspace/jupyter.log 2>&1 &
+
+sleep 2
+
+echo "JupyterLab: http://YOUR_IP:8888"
+echo "ComfyUI starting on port 8188..."
 echo "==================================="
 
-python main.py --listen 0.0.0.0 --port 8188
+exec python main.py --listen 0.0.0.0 --port 8188
