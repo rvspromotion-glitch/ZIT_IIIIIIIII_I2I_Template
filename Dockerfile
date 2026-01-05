@@ -1,19 +1,27 @@
 FROM runpod/pytorch:2.1.1-py3.10-cuda12.1.1-devel-ubuntu22.04
+
 ENV DEBIAN_FRONTEND=noninteractive
 ENV COMFYUI_PATH=/workspace/ComfyUI
 
-# Install system dependencies
 RUN apt-get update && apt-get install -y \
-    git \
-    wget \
-    curl \
+    git wget curl \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /workspace
 
-# FIX: Pin compatible versions to prevent conflicts
+# ---- CRITICAL: keep numpy < 2 to avoid compiled-extension issues ----
+RUN pip install --no-cache-dir "numpy<2"
+
+# ---- CRITICAL: upgrade torch stack (CUDA 12.1 wheels) ----
+# This resolves: torch.utils._pytree.register_pytree_node missing
+RUN pip install --no-cache-dir --upgrade \
+    torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+
+# Reinstall xformers AFTER torch upgrade (do NOT pin 0.0.23 anymore)
+RUN pip install --no-cache-dir --upgrade xformers
+
+# Your other deps (keep these AFTER torch/xformers)
 RUN pip install --no-cache-dir \
-    xformers==0.0.23 \
     ultralytics \
     jupyterlab \
     sageattention \
@@ -27,25 +35,25 @@ RUN git clone https://github.com/comfyanonymous/ComfyUI.git && \
 
 WORKDIR /workspace/ComfyUI
 
-# Install ComfyUI Manager
+# ComfyUI Manager
 RUN cd custom_nodes && \
     git clone https://github.com/ltdrdata/ComfyUI-Manager.git && \
     pip install --no-cache-dir -r ComfyUI-Manager/requirements.txt || true
 
-# Install essential custom nodes
+# Essential custom nodes
 RUN cd custom_nodes && \
     git clone https://github.com/rgthree/rgthree-comfy.git && \
     git clone https://github.com/cubiq/ComfyUI_essentials.git && \
     git clone https://github.com/pythongosssss/ComfyUI-Custom-Scripts.git && \
     git clone https://github.com/gseth/ControlAltAI-Nodes.git
 
-# Install requirements for custom nodes
+# Node requirements (best-effort)
 RUN cd custom_nodes/rgthree-comfy && pip install --no-cache-dir -r requirements.txt || true
 RUN cd custom_nodes/ComfyUI_essentials && pip install --no-cache-dir -r requirements.txt || true
 RUN cd custom_nodes/ComfyUI-Custom-Scripts && pip install --no-cache-dir -r requirements.txt || true
 RUN cd custom_nodes/ControlAltAI-Nodes && pip install --no-cache-dir -r requirements.txt || true
 
-# Create model directories
+# Model directories
 RUN mkdir -p models/sams \
     models/ultralytics/bbox \
     models/ultralytics/segm \
@@ -54,13 +62,10 @@ RUN mkdir -p models/sams \
     models/clip \
     models/loras
 
-# Set permissions
 RUN chmod -R 777 models/loras
 
-# Copy startup script
 COPY start.sh /start.sh
 RUN chmod +x /start.sh
 
 EXPOSE 8188 8888
-
 CMD ["/start.sh"]
