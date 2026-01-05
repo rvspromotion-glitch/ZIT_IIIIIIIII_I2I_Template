@@ -124,6 +124,31 @@ download "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_file
 echo "[models] Downloads completed."
 
 # -----------------------------
+# Extra BBOX models from your repo
+# -----------------------------
+BBOX_DIR="${MODELS_DIR}/ultralytics/bbox"
+mkdir -p "${BBOX_DIR}"
+
+if [ ! -f "/workspace/.bbox-models-installed" ]; then
+  echo "[bbox] Installing extra bbox models from IIIIIIIII_ZIT_V3_Ultralytics..."
+
+  tmp="/tmp/zit_ultra_bbox"
+  rm -rf "$tmp"
+
+  git clone --depth 1 --progress \
+    "https://github.com/rvspromotion-glitch/IIIIIIIII_ZIT_V3_Ultralytics.git" \
+    "$tmp"
+
+  # Copy all .pt files from the repo into the bbox dir (recursive)
+  find "$tmp" -type f -name "*.pt" -print -exec cp -f {} "${BBOX_DIR}/" \;
+
+  rm -rf "$tmp"
+  touch /workspace/.bbox-models-installed
+else
+  echo "[bbox] already installed"
+fi
+
+# -----------------------------
 # Install your node pack (only once per pod disk)
 # -----------------------------
 if [ ! -f "/workspace/.custom-nodes-installed" ]; then
