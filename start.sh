@@ -1,45 +1,45 @@
 #!/usr/bin/env bash
 set -e
 
-echo "==================================="
-echo "Starting Stable ComfyUI Environment"
-echo "==================================="
+echo "--- Initializing ComfyUI Structure ---"
 
-# 1. Setup Persistent Storage
-# We use /workspace (RunPod's volume) for your downloads, but keep code in /opt for speed
-mkdir -p /workspace/models /workspace/output /workspace/input /workspace/user_nodes
+# 1. Define Paths
+BAKED_APP="/opt/ComfyUI"
+WORK_DIR="/workspace/ComfyUI"
 
-# Ensure pre-baked models are available in the UI
-# This links the baked models into the active ComfyUI directory
-echo "[setup] Linking models..."
-cp -rn /opt/models/* /workspace/models/ || true
+# 2. Build the directory on the Volume
+mkdir -p "$WORK_DIR"
+mkdir -p /workspace/models /workspace/input /workspace/output
 
-# 2. Start JupyterLab (Background)
+# 3. Create Symlink Tree (Makes ComfyUI visible in Workspace)
+for item in "$BAKED_APP"/*; do
+    base=$(basename "$item")
+    case "$base" in
+        models|input|output)
+            # Link baked models into the volume folder (doesn't overwrite your own)
+            mkdir -p "$WORK_DIR/$base"
+            cp -rn "$item"/* "$WORK_DIR/$base/" 2>/dev/null || true
+            ;;
+        custom_nodes)
+            mkdir -p "$WORK_DIR/custom_nodes"
+            # Link all pre-installed nodes so they are ready
+            for node in "$item"/*; do
+                ln -sfn "$node" "$WORK_DIR/custom_nodes/$(basename "$node")"
+            done
+            ;;
+        *)
+            # Symlink core files
+            ln -sfn "$item" "$WORK_DIR/$base"
+            ;;
+    esac
+done
+
+# 4. Start JupyterLab (Background)
 jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root \
   --ServerApp.token='' --ServerApp.password='' \
-  --ServerApp.allow_origin='*' > /workspace/jupyter.log 2>&1 &
+  --ServerApp.allow_origin='*' --ServerApp.root_dir="/workspace" > /workspace/jupyter.log 2>&1 &
 
-# 3. Environment Protection
-# This prevents any runtime "pip install" from breaking your core dependencies
-export PIP_CONSTRAINT="/opt/constraints.txt"
-cat > /opt/constraints.txt <<EOF
-numpy<2
-transformers>=4.44.2
-protobuf<5
-EOF
-
-echo "[debug] Python Version:"
-python3 --version
-echo "[debug] Torch Version:"
-python3 -c "import torch; print(torch.__version__)"
-
-# 4. Launch ComfyUI
-# --listen 0.0.0.0 is critical for RunPod
-# --extra-model-paths-config allows you to use models from the /workspace volume
-cd /opt
+# 5. Launch ComfyUI
 echo "--- Launching ComfyUI ---"
-exec python3 main.py \
-    --listen 0.0.0.0 \
-    --port 8188 \
-    --input-directory /workspace/input \
-    --output-directory /workspace/output
+cd "$WORK_DIR"
+exec python3 main.py --listen 0.0.0.0 --port 8188 --input-directory /workspace/input --output-directory /workspace/output
