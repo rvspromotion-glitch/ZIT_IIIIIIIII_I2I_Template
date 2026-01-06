@@ -191,13 +191,6 @@ download "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_file
   "${MODELS_DIR}/clip/qwen_3_4b.safetensors" &
 wait
 
-# Batch 4 (SDXL)
-download "https://civitai.com/api/download/models/2435561?type=Model&format=SafeTensor&size=pruned&fp=fp16" \
-  "${MODELS_DIR}/checkpoints/Big_Love_Photo4.safetensors" &
-download "https://huggingface.co/kaareej/loras-models/resolve/main/pussy-loras/Pussy_Spreading_v3_XL.safetensors" \
-  "${MODELS_DIR}/loras/Pussy_Spreading_v3_XL.safetensors" &
-wait
-
 echo "[models] Downloads completed."
 
 # -----------------------------
