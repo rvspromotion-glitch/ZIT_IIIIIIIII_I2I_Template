@@ -4,7 +4,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV COMFYUI_PATH=/workspace/ComfyUI
 
 RUN apt-get update && apt-get install -y \
-    git wget curl \
+    git wget curl aria2 \
     libgl1 libglib2.0-0 \
     ffmpeg \
     && rm -rf /var/lib/apt/lists/*
