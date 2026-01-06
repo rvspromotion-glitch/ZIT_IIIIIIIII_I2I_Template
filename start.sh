@@ -191,6 +191,13 @@ download "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_file
   "${MODELS_DIR}/clip/qwen_3_4b.safetensors" &
 wait
 
+# Batch 4 (SDXL)
+download "https://huggingface.co/John6666/real-dream-sdxlpony15-sdxl/resolve/main/unet/diffusion_pytorch_model.safetensors" \
+  "${MODELS_DIR}/checkpoints/real-dream-sdxlpony15.safetensors" &
+download "https://huggingface.co/kaareej/loras-models/resolve/main/pussy-loras/Pussy_Spreading_v3_XL.safetensors" \
+  "${MODELS_DIR}/loras/Pussy_Spreading_v3_XL.safetensors" &
+wait
+
 echo "[models] Downloads completed."
 
 # -----------------------------
