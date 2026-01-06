@@ -47,6 +47,7 @@ protobuf<5
 transformers==4.39.3
 tokenizers==0.15.2
 safetensors
+mediapipe==0.10.14
 EOF
 
 # Force pip everywhere (including any prestartup scripts that call pip) to obey constraints
@@ -58,7 +59,12 @@ cat "$CONSTRAINTS_FILE"
 # Make sure core stack is aligned right now (fast if already satisfied)
 pip install -q --upgrade --prefer-binary \
   -c "$CONSTRAINTS_FILE" \
-  "numpy<2" "protobuf<5" "transformers==4.39.3" "tokenizers==0.15.2" "safetensors" || true
+  "numpy<2" \
+  "protobuf<5" \
+  "transformers==4.39.3" \
+  "tokenizers==0.15.2" \
+  "safetensors" \
+  "mediapipe==0.10.14" || true
 
 echo "[debug] Versions:"
 python3 - <<'PY'
