@@ -1,41 +1,32 @@
 FROM runpod/pytorch:2.1.1-py3.10-cuda12.1.1-devel-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
-ENV PIP_NO_CACHE_DIR=1
+ENV COMFYUI_PATH=/workspace/ComfyUI
+ENV COMFYUI_BAKED=/opt/ComfyUI
 
-# 1. System Deps
-RUN apt-get update && apt-get install -y git wget curl aria2 libgl1 libglib2.0-0 ffmpeg && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y \
+    git wget curl aria2 \
+    libgl1 libglib2.0-0 \
+    ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
 
-# 2. Critical Python Deps (Including Mediapipe)
-RUN pip install "numpy<2" "protobuf<5" "transformers>=4.44.2" "safetensors" \
-    "ultralytics" "onnxruntime-gpu" "mediapipe==0.10.14" "jupyterlab"
+WORKDIR /workspace
 
-# 3. ComfyUI Core
-WORKDIR /opt/ComfyUI
-RUN git clone --depth 1 https://github.com/comfyanonymous/ComfyUI.git . && \
-    pip install -r requirements.txt
+RUN pip install --no-cache-dir "numpy<2"
+RUN pip install --no-cache-dir --upgrade xformers==0.0.23
 
-# 4. Your Node List
-WORKDIR /opt/ComfyUI/custom_nodes
-RUN git clone --depth 1 https://github.com/ltdrdata/ComfyUI-Manager.git && \
-    git clone --depth 1 https://github.com/Fannovel16/comfyui_controlnet_aux.git && \
-    git clone --depth 1 https://github.com/ltdrdata/ComfyUI-Impact-Pack.git && \
-    git clone --depth 1 https://github.com/rgthree/rgthree-comfy.git && \
-    git clone --depth 1 https://github.com/cubiq/ComfyUI_essentials.git && \
-    git clone --depth 1 https://github.com/lquesada/ComfyUI-Inpaint-CropAndStitch.git && \
-    git clone --depth 1 https://github.com/chrisgoringe/cg-use-everywhere.git && \
-    git clone --depth 1 https://github.com/ClownsharkBatwing/RES4LYF.git && \
-    git clone --depth 1 https://github.com/djbielejeski/a-person-mask-generator.git && \
-    git clone --depth 1 https://github.com/ltdrdata/ComfyUI-Impact-Subpack.git && \
-    git clone --depth 1 https://github.com/gseth/ControlAltAI-Nodes.git && \
-    git clone --depth 1 https://github.com/fairy-root/ComfyUI-Show-Text.git
+RUN pip install --no-cache-dir ultralytics
+RUN pip install --no-cache-dir jupyterlab
+RUN pip install --no-cache-dir sentencepiece
+RUN pip install --no-cache-dir protobuf
+RUN pip install --no-cache-dir sageattention || true
 
-# 5. Install Node Requirements & Clean up to save space
-RUN find . -maxdepth 2 -name "requirements.txt" -exec pip install -r {} \; && \
-    rm -rf /root/.cache/pip
+# Bake ComfyUI into /opt (won't be hidden by /workspace mount)
+RUN git clone https://github.com/comfyanonymous/ComfyUI.git /opt/ComfyUI && \
+    pip install --no-cache-dir -r /opt/ComfyUI/requirements.txt
 
 COPY start.sh /start.sh
 RUN chmod +x /start.sh
 
-WORKDIR /workspace
+EXPOSE 8188 8888
 CMD ["/start.sh"]
