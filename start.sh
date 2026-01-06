@@ -190,43 +190,46 @@ else
 fi
 
 # -----------------------------
-# Install your node pack (only once per pod disk)
+# Node pack via SYMLINKS (FAST)
 # -----------------------------
-if [ ! -f "/workspace/.custom-nodes-installed" ]; then
-  echo "[nodes] Installing custom nodes from your repo..."
-  tmp="/tmp/zit_custom_nodes"
-  rm -rf "$tmp"
+REPO_CACHE="/workspace/_repos"
+ZIT_REPO_DIR="${REPO_CACHE}/IIIIIIII_ZIT_V3"
+mkdir -p "$REPO_CACHE"
 
+# Set UPDATE_NODES=1 in RunPod env vars if you want to git pull
+UPDATE_NODES="${UPDATE_NODES:-0}"
+
+if [ ! -d "${ZIT_REPO_DIR}/.git" ]; then
+  echo "[nodes] cloning node pack into cache (one-time)..."
+  rm -rf "${ZIT_REPO_DIR}"
   GIT_TERMINAL_PROMPT=0 git clone --recurse-submodules --progress \
-    "https://github.com/rvspromotion-glitch/IIIIIIII_ZIT_V3.git" "$tmp"
-  git -C "$tmp" submodule update --init --recursive || true
-
-  for dir in "$tmp"/*; do
-    [ -d "$dir" ] || continue
-    node_name="$(basename "$dir")"
-    if [ "$node_name" = ".git" ] || [ "$node_name" = ".github" ]; then
-      continue
-    fi
-
-    echo "  - installing: $node_name"
-    rm -rf "${CUSTOM_NODES}/${node_name}"
-    mkdir -p "${CUSTOM_NODES}/${node_name}"
-
-    (cd "$dir" && tar --exclude=.git --exclude=.gitmodules --exclude=.github -cf - .) | \
-      (cd "${CUSTOM_NODES}/${node_name}" && tar -xf -)
-
-    if [ -f "${CUSTOM_NODES}/${node_name}/requirements.txt" ]; then
-      echo "    [pip] ${node_name}/requirements.txt"
-      safe_pip_install_req "${CUSTOM_NODES}/${node_name}/requirements.txt"
-    fi
-  done
-
-  rm -rf "$tmp"
-  touch /workspace/.custom-nodes-installed
+    "https://github.com/rvspromotion-glitch/IIIIIIII_ZIT_V3.git" \
+    "${ZIT_REPO_DIR}"
+  git -C "${ZIT_REPO_DIR}" submodule update --init --recursive || true
+elif [ "$UPDATE_NODES" = "1" ]; then
+  echo "[nodes] updating cached node pack..."
+  git -C "${ZIT_REPO_DIR}" pull --rebase || true
+  git -C "${ZIT_REPO_DIR}" submodule update --init --recursive || true
+else
+  echo "[nodes] using cached node pack (no git pull)"
 fi
 
-# Remove junk folders ComfyUI tries to import
-rm -rf "${CUSTOM_NODES}/.git" "${CUSTOM_NODES}/.gitmodules" "${CUSTOM_NODES}/.ipynb_checkpoints" 2>/dev/null || true
+echo "[nodes] creating symlinks in custom_nodes..."
+
+for dir in "${ZIT_REPO_DIR}"/*; do
+  [ -d "$dir" ] || continue
+  node_name="$(basename "$dir")"
+
+  # skip junk
+  case "$node_name" in
+    .git|.github|__pycache__)
+      continue
+      ;;
+  esac
+
+  echo "  - symlink: $node_name"
+  ln -sfn "$dir" "${CUSTOM_NODES}/${node_name}"
+done
 
 # -----------------------------
 # Start JupyterLab
