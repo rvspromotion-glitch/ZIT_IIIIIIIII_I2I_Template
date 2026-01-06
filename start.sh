@@ -192,8 +192,8 @@ download "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_file
 wait
 
 # Batch 4 (SDXL)
-download "https://huggingface.co/John6666/real-dream-sdxlpony15-sdxl/resolve/main/unet/diffusion_pytorch_model.safetensors" \
-  "${MODELS_DIR}/checkpoints/real-dream-sdxlpony15.safetensors" &
+download "https://civitai.com/api/download/models/2435561?type=Model&format=SafeTensor&size=pruned&fp=fp16" \
+  "${MODELS_DIR}/checkpoints/Big_Love_Photo4.safetensors" &
 download "https://huggingface.co/kaareej/loras-models/resolve/main/pussy-loras/Pussy_Spreading_v3_XL.safetensors" \
   "${MODELS_DIR}/loras/Pussy_Spreading_v3_XL.safetensors" &
 wait
