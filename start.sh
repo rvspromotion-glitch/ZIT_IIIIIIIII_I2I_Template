@@ -137,7 +137,8 @@ mkdir -p \
   "${MODELS_DIR}/diffusion_models" \
   "${MODELS_DIR}/vae" \
   "${MODELS_DIR}/clip" \
-  "${MODELS_DIR}/loras"
+  "${MODELS_DIR}/loras" \
+  "${MODELS_DIR}/checkpoints"
 
 chmod -R 777 "${MODELS_DIR}/loras" || true
 
@@ -178,6 +179,12 @@ download "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_file
   "${MODELS_DIR}/vae/ae.safetensors" &
 download "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/text_encoders/qwen_3_4b.safetensors" \
   "${MODELS_DIR}/clip/qwen_3_4b.safetensors" &
+wait
+
+download "https://civitai.com/api/download/models/1511445?type=Model&format=SafeTensor" \
+  "${MODELS_DIR}/loras/1511445_Spread i5XL.safetensors" &
+download "https://civitai.com/api/download/models/2435561?type=Model&format=SafeTensor&size=pruned&fp=fp16" \
+  "${MODELS_DIR}/checkpoints/2435561_Photo4_fp16_pruned.safetensors" &
 wait
 
 echo "[models] Downloads completed."
