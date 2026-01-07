@@ -143,12 +143,15 @@ civit_download() {
 }
 
 env_lora_download() {
-  local url_var="$1"      # name of env var
-  local filename="$2"     # output filename (optional)
+  local url_var="$1"      # env var name, e.g. CHAR_LORA_URL
+  local filename="${2:-}" # optional output filename override
   local out_dir="${MODELS_DIR}/loras"
 
   local url="${!url_var:-}"
-  [ -n "$url" ] || return 0
+  if [ -z "$url" ]; then
+    echo "[lora] env ${url_var} is empty -> skip"
+    return 0
+  fi
 
   mkdir -p "$out_dir"
 
@@ -157,32 +160,33 @@ env_lora_download() {
     filename="$(basename "${url%%\?*}")"
   fi
 
+  # sanitize spaces just in case
+  filename="${filename// /_}"
+
   local out="${out_dir}/${filename}"
+
+  echo "[lora] url_var=${url_var}"
+  echo "[lora] url=${url}"
+  echo "[lora] out=${out}"
 
   if [ -f "$out" ] && [ -s "$out" ]; then
     echo "[lora] exists: $out"
     return 0
   fi
 
-  echo "[lora] downloading from env ${url_var} -> $out"
+  # Dropbox can be picky; use curl with UA + retries + resume
+  curl -L --fail --retry 10 --retry-delay 2 -C - \
+    -A "Mozilla/5.0" \
+    -o "$out" "$url"
 
-  if command -v aria2c >/dev/null 2>&1; then
-    aria2c -c -x 16 -s 16 -k 1M \
-      --allow-overwrite=true \
-      --file-allocation=none \
-      -d "$out_dir" -o "$filename" \
-      "$url"
-  else
-    curl -L --fail --retry 8 --retry-delay 2 -C - \
-      -o "$out" "$url"
-  fi
-
-  # Safety: reject HTML (Dropbox error pages, auth pages, etc.)
+  # Detect HTML instead of a safetensors binary
   if file "$out" | grep -qi "HTML"; then
-    echo "[lora] ERROR: got HTML instead of model. Removing $out"
+    echo "[lora] ERROR: got HTML instead of model (Dropbox auth/blocked). Removing $out"
     rm -f "$out"
     return 1
   fi
+
+  echo "[lora] done: $(ls -lh "$out" | awk '{print $5, $9}')"
 }
 
 # Install node requirements but never allow torch stack / numpy / transformers to be changed.
