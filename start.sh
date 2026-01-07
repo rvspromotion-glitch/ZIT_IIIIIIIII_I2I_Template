@@ -49,6 +49,7 @@ transformers==4.39.3
 tokenizers==0.15.2
 safetensors
 mediapipe==0.10.14
+sageattention
 EOF
 
 export PIP_CONSTRAINT="$CONSTRAINTS_FILE"
@@ -63,7 +64,8 @@ pip install -q --upgrade --prefer-binary \
   "transformers==4.39.3" \
   "tokenizers==0.15.2" \
   "safetensors" \
-  "mediapipe==0.10.14" || true
+  "mediapipe==0.10.14" \
+  "sageattention" || true
 
 echo "[debug] Versions:"
 python3 - <<'PY'
