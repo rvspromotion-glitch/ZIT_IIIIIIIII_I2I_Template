@@ -142,6 +142,49 @@ civit_download() {
   fi
 }
 
+env_lora_download() {
+  local url_var="$1"      # name of env var
+  local filename="$2"     # output filename (optional)
+  local out_dir="${MODELS_DIR}/loras"
+
+  local url="${!url_var:-}"
+  [ -n "$url" ] || return 0
+
+  mkdir -p "$out_dir"
+
+  # Auto-name from URL if not provided
+  if [ -z "$filename" ]; then
+    filename="$(basename "${url%%\?*}")"
+  fi
+
+  local out="${out_dir}/${filename}"
+
+  if [ -f "$out" ] && [ -s "$out" ]; then
+    echo "[lora] exists: $out"
+    return 0
+  fi
+
+  echo "[lora] downloading from env ${url_var} -> $out"
+
+  if command -v aria2c >/dev/null 2>&1; then
+    aria2c -c -x 16 -s 16 -k 1M \
+      --allow-overwrite=true \
+      --file-allocation=none \
+      -d "$out_dir" -o "$filename" \
+      "$url"
+  else
+    curl -L --fail --retry 8 --retry-delay 2 -C - \
+      -o "$out" "$url"
+  fi
+
+  # Safety: reject HTML (Dropbox error pages, auth pages, etc.)
+  if file "$out" | grep -qi "HTML"; then
+    echo "[lora] ERROR: got HTML instead of model. Removing $out"
+    rm -f "$out"
+    return 1
+  fi
+}
+
 # Install node requirements but never allow torch stack / numpy / transformers to be changed.
 safe_pip_install_req() {
   local req="$1"
@@ -214,6 +257,12 @@ civit_download "https://civitai.com/api/download/models/1511445?type=Model&forma
   "${MODELS_DIR}/loras/1511445_Spread i5XL.safetensors" &
 civit_download "https://civitai.com/api/download/models/2435561?type=Model&format=SafeTensor&size=pruned&fp=fp16" \
   "${MODELS_DIR}/checkpoints/2435561_Photo4_fp16_pruned.safetensors" &
+wait
+
+# -----------------------------
+# Optional character LoRA via env var
+# -----------------------------
+env_lora_download "CHAR_LORA_URL" &
 wait
 
 echo "[models] Downloads completed."
