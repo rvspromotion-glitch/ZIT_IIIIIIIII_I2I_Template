@@ -113,6 +113,35 @@ download() {
   fi
 }
 
+civit_download() {
+  local url="$1"
+  local out="$2"
+  mkdir -p "$(dirname "$out")"
+
+  if [ -f "$out" ] && [ -s "$out" ]; then
+    echo "[civitai] exists: $out"
+    return 0
+  fi
+
+  echo "[civitai] downloading: $out"
+
+  local header=()
+  if [ -n "${CIVITAI_TOKEN:-}" ]; then
+    header+=( -H "Authorization: Bearer ${CIVITAI_TOKEN}" )
+  fi
+
+  curl -L --fail --retry 10 --retry-delay 2 -C - \
+    "${header[@]}" \
+    -o "$out" "$url"
+
+  # If we got HTML (login page), delete it so you dont think its a model
+  if file "$out" | grep -qi "HTML"; then
+    echo "[civitai] ERROR: got HTML instead of model (token missing/invalid/gated). Removing $out"
+    rm -f "$out"
+    return 1
+  fi
+}
+
 # Install node requirements but never allow torch stack / numpy / transformers to be changed.
 safe_pip_install_req() {
   local req="$1"
@@ -181,9 +210,9 @@ download "https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_file
   "${MODELS_DIR}/clip/qwen_3_4b.safetensors" &
 wait
 
-download "https://civitai.com/api/download/models/1511445?type=Model&format=SafeTensor" \
+civit_download "https://civitai.com/api/download/models/1511445?type=Model&format=SafeTensor" \
   "${MODELS_DIR}/loras/1511445_Spread i5XL.safetensors" &
-download "https://civitai.com/api/download/models/2435561?type=Model&format=SafeTensor&size=pruned&fp=fp16" \
+civit_download "https://civitai.com/api/download/models/2435561?type=Model&format=SafeTensor&size=pruned&fp=fp16" \
   "${MODELS_DIR}/checkpoints/2435561_Photo4_fp16_pruned.safetensors" &
 wait
 
